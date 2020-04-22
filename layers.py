@@ -71,19 +71,28 @@ class KGLayer(nn.Module):
         N = self.n_entities
 
         if ent_embed is None:
-            ent_embed = self.ent_embed
-            rel_embed = self.rel_embed
+            h = torch.cat((
+                self.ent_embed(triplets[:, 0]),
+                self.ent_embed(triplets[:, 1]),
+                self.rel_embed(triplets[:, 2])
+            ), dim=1)
+            h_ = torch.cat((
+                self.ent_embed(triplets[:, 1]),
+                self.ent_embed(triplets[:, 0]),
+               -self.rel_embed(triplets[:, 2])  
+            ), dim=1)
+        else:
+            h = torch.cat((
+                ent_embed(triplets[:, 0]),
+                ent_embed(triplets[:, 1]),
+                rel_embed(triplets[:, 2])
+            ), dim=1)
+            h_ = torch.cat((
+                ent_embed(triplets[:, 1]),
+                ent_embed(triplets[:, 0]),
+               -rel_embed(triplets[:, 2])  
+            ), dim=1)
 
-        h = torch.cat((
-            ent_embed(triplets[:, 0]),
-            ent_embed(triplets[:, 1]),
-            rel_embed(triplets[:, 2])
-        ), dim=1)
-        h_ = torch.cat((
-            ent_embed(triplets[:, 1]),
-            ent_embed(triplets[:, 0]),
-           -rel_embed(triplets[:, 2])  
-        ), dim=1)
         h = torch.cat((h, h_)) 
 
         h = self.input_drop(self.bn0(h))
