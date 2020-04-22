@@ -7,12 +7,12 @@ from layers import KGNet
 from loss import loss_transe
 from utils import negative_sampling
 
-def train(kg_train, in_dim, out_dim, negative_rate, batch_size, device, n_epochs, lr=0.001):
+def train(kg_train, in_dim, out_dim, negative_rate, batch_size, device, n_epochs, lr=0.001, n_heads=10):
     dataloader = DataLoader(kg_train, batch_size=batch_size, shuffle=False, pin_memory=torch.cuda.is_available())
     batches = [b for b in dataloader]
     n_ent, n_rel = kg_train.n_ent, kg_train.n_rel 
 
-    model = KGNet(n_ent, n_rel, in_dim, out_dim, 0.5)
+    model = KGNet(n_ent, n_rel, in_dim, out_dim, 0.5, n_heads=n_heads)
     optimizer = SGD(model.parameters(), lr=lr)
 
     for epoch in range(n_epochs):
