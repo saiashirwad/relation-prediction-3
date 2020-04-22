@@ -32,5 +32,6 @@ def train(kg_train, in_dim, out_dim, negative_rate, batch_size, device, n_epochs
             optimizer.step()
 
             losses.append(loss.item())
+            print(i)
         
         print(f"epoch: {epoch}, loss: {sum(losses) / len(losses)}")
