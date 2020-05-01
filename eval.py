@@ -73,5 +73,7 @@ def eval(kg_val, model, n_dim, n_samples):
         mean_rank = (head_rank_mean + tail_rank_mean) / 2
         hits_10 = (head_hits_10 + tail_hits_10) / 2
 
-    print(f"Mean Rank: {mean_rank}")
-    print(f"Hits@10: {hits_10}")
+    #  print(f"Mean Rank: {mean_rank}")
+    #  print(f"Hits@10: {hits0}")
+    print("mean rank: {}".format(mean_rank))
+    print("hits@10: {}".format(hits_10))

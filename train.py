@@ -1,4 +1,5 @@
-import torch 
+#! /usr/bin/python3.7
+import torch
 import torch.nn as nn 
 from torch.utils.data import DataLoader
 from torch.optim import SGD
@@ -33,4 +34,4 @@ def train(kg_train, in_dim, out_dim, negative_rate, batch_size, device, n_epochs
 
             losses.append(loss.item())
         
-        print(f"epoch: {epoch}, loss: {sum(losses) / len(losses)}")
+        print("epoch: {}, loss: {}".format(epoch, (sum(losses) / len(losses))))
