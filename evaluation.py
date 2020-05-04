@@ -53,7 +53,7 @@ def eval(kg_val, model, n_dim, n_samples):
 
             # # # # tail
             triplets_t = generate_eval_triplets(data[i], "tail", n_ent)
-            triplets_t, _, _, _ = negative_sampling(triplets_t, n_ent, 0)
+            triplets_t, _ = negative_sampling(triplets_t, n_ent, 0)
             triplets_t = triplets_t.to("cuda")
             ee, re = model(triplets_t)
 
