@@ -1,6 +1,6 @@
-import torch 
-import torch.nn as nn 
-import torch.nn.functional as F 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 from torch_scatter import scatter
 
@@ -56,7 +56,7 @@ class KGLayer(nn.Module):
 
         self.ent_embed = nn.Embedding(n_entities, in_dim, max_norm=1, norm_type=2).to(device)
         self.rel_embed = nn.Embedding(n_relations, in_dim, max_norm=1, norm_type=2).to(device)
-        
+
         nn.init.xavier_normal_(self.ent_embed.weight.data, 1.414)
         nn.init.xavier_normal_(self.rel_embed.weight.data, 1.414)
 
@@ -65,9 +65,9 @@ class KGLayer(nn.Module):
         self.bn0 = nn.BatchNorm1d(3 * in_dim).to(device)
         self.bn1 = nn.BatchNorm1d(out_dim).to(device)
 
-    
+
     def forward(self, triplets, ent_embed=None, rel_embed=None):
-        
+
         N = self.n_entities
 
         if ent_embed is None:
@@ -79,7 +79,7 @@ class KGLayer(nn.Module):
             h_ = torch.cat((
                 self.ent_embed(triplets[:, 1]),
                 self.ent_embed(triplets[:, 0]),
-               -self.rel_embed(triplets[:, 2])  
+               -self.rel_embed(triplets[:, 2])
             ), dim=1)
         else:
             h = torch.cat((
@@ -90,10 +90,10 @@ class KGLayer(nn.Module):
             h_ = torch.cat((
                 ent_embed[triplets[:, 1]],
                 ent_embed[triplets[:, 0]],
-               -rel_embed[triplets[:, 2]]  
+               -rel_embed[triplets[:, 2]]
             ), dim=1)
 
-        h = torch.cat((h, h_)) 
+        h = torch.cat((h, h_))
 
         h = self.input_drop(self.bn0(h))
         c = self.bn1(self.a(h))
@@ -116,7 +116,7 @@ class KGLayer(nn.Module):
 
         index = triplets[:, 2]
         h_rel  = scatter(temp1[ : temp1.shape[0]//2, :], index=index, dim=0, reduce="mean")
-        # h_rel_ = scatter(temp1[temp1.shape[0]//2 : , :], index=index, dim=0, reduce="mean")  
+        # h_rel_ = scatter(temp1[temp1.shape[0]//2 : , :], index=index, dim=0, reduce="mean")
 
         # h_rel = h_rel - h_rel_  # add or subtract?
 
@@ -133,10 +133,10 @@ class KGNet(nn.Module):
         self.n_heads = n_heads
 
         self.a1 = nn.ModuleList([
-            KGLayer(n_entities, n_relations, in_dim, out_dim, input_drop, True, "cuda") 
+            KGLayer(n_entities, n_relations, in_dim, out_dim, input_drop, True, "cuda")
             for _ in range(n_heads)])
         self.a2 = KGLayer(n_entities, n_relations, n_heads * out_dim, out_dim, input_drop, False, "cuda")
-    
+
     def forward(self, triplets):
         out = [a(triplets) for a in self.a1]
         h_ent = torch.cat([o[0] for o in out], dim=1)

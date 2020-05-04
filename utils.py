@@ -1,5 +1,5 @@
-import numpy as np 
-import torch 
+import numpy as np
+import torch
 
 def negative_sampling(pos_samples, num_entity, negative_rate):
     if pos_samples.shape[0] == 3:
