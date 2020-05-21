@@ -154,7 +154,7 @@ class RotAtt(nn.Module):
         score = score.norm(dim = 0).sum(dim = -1)
         return score.permute(1, 0).flatten()
 
-    def forward(self, triplets, mode="head", eval=False):
+    def forward(self, triplets, mode="tail_batch", eval=False):
         n = len(triplets)
 
         out = [a(triplets) for a in self.a]
@@ -178,4 +178,8 @@ class RotAtt(nn.Module):
             return loss 
         
         else:
-            pass 
+            return self.margin - self.rotate(triplets, ent_embed, rel_embed, mode) 
+
+    def predict(self, data):
+        score = -self.forward(data, "tail_batch")
+        return score.cpu().data.numpy()
