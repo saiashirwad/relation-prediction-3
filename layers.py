@@ -116,9 +116,9 @@ class KGLayer(nn.Module):
 
         index = triplets[:, 2]
         h_rel  = scatter(temp1[ : temp1.shape[0]//2, :], index=index, dim=0, reduce="mean")
-        # h_rel_ = scatter(temp1[temp1.shape[0]//2 : , :], index=index, dim=0, reduce="mean")
+        h_rel_ = scatter(temp1[temp1.shape[0]//2 : , :], index=index, dim=0, reduce="mean")
 
-        # h_rel = h_rel - h_rel_  # add or subtract?
+        h_rel = h_rel - h_rel_  # add or subtract?
 
         if self.concat:
             return F.elu(h_ent), F.elu(h_rel)

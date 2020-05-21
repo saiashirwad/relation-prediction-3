@@ -36,5 +36,5 @@ def loss_transe(triplets, neg_sampling_ratio, ent_embed, rel_embed, device='cpu'
 
     loss_fn = nn.MarginRankingLoss(margin=5)
     loss = loss_fn(pos_norm, neg_norm, y)
-
+    
     return loss
