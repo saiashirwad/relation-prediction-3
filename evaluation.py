@@ -23,7 +23,7 @@ def generate_eval_triplets(triplet, pos="head", n_ent=14541):
 
     return triplets.t()
 
-def eval(kg_val, model, n_dim, n_samples):
+def eval(kg_val, model, n_samples):
     dataloader = DataLoader(kg_val, 1, shuffle=True)
     data = [d for d in dataloader]
 

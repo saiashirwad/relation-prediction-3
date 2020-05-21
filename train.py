@@ -9,6 +9,7 @@ from layers import KGNet
 from loss import loss_transe
 from utils import negative_sampling
 from rotate import RotAtt
+from trainer import Trainer
 
 def train_kgatt(kg_train, in_dim, out_dim, negative_rate, batch_size, device, n_epochs, lr=0.001, n_heads=10, model=None):
     dataloader = DataLoader(kg_train, batch_size=batch_size, shuffle=False, pin_memory=torch.cuda.is_available())
@@ -54,4 +55,9 @@ def train_rotatt():
 
     n_ent, n_rel = kg_train.n_ent, kg_train.n_rel 
     model = RotAtt(n_ent, n_rel, in_dim, out_dim, n_heads, dropout, negative_rate, 6.0, 2.0, device)
-    pass 
+
+    trainer = Trainer("first", model, 10, 2000, "cuda", "sgd", 0.001)
+    trainer.run() 
+    trainer.evaluate()
+
+train_rotatt()

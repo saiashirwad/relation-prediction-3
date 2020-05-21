@@ -17,12 +17,12 @@ class RotAttLayer(nn.Module):
         self.in_dim = in_dim
         self.out_dim = out_dim
         self.device = device
-        self.loss = loss 
+
+        self.margin = margin 
+        self.epsilon = epsilon
 
         self.a = nn.Linear(3 * in_dim, out_dim).to(device)
         nn.init.xavier_normal_(self.a.weight.data, gain=1.414)
-
-        self.concat = concat
 
         self.a_2 = nn.Linear(out_dim, 1).to(device)
         nn.init.xavier_normal_(self.a_2.weight.data, gain=1.414)
@@ -99,20 +99,33 @@ class RotAtt(nn.Module):
         self.n_heads = n_heads 
         self.device = device
 
+        self.in_dim = in_dim 
+        self.out_dim = out_dim 
+        self.margin = margin
+        self.epsilon = epsilon
+
         self.a = nn.ModuleList([
             RotAttLayer(
                 n_ent, n_rel, in_dim, out_dim, input_drop, margin=margin, epsilon=epsilon
             )
-        ] for _ in range(self.n_heads))
+        for _ in range(self.n_heads)])
 
-        self.ent_transform = nn.Linear(n_heads * out_dim, out_dim)
-        self.rel_transform = nn.Linear(n_heads * out_dim, out_dim)
+        self.ent_transform = nn.Linear(n_heads * out_dim, out_dim).to(device)
+        self.rel_transform = nn.Linear(n_heads * out_dim, out_dim // 2).to(device)
+
+        
+        self.ent_embed_range = nn.Parameter(
+            torch.Tensor([(self.margin + self.epsilon) / self.out_dim]), 
+            requires_grad = False
+        )
+        
+        self.rel_embed_range = nn.Parameter(
+            torch.Tensor([(self.margin + self.epsilon) / self.out_dim]),
+            requires_grad = False
+        )
 
         self.pi = nn.Parameter(torch.Tensor([3.14159265358979323846])).to(device)
-        self.pi.requires_grad = False 
-        
-        self.margin = margin
-        self.epsilon = epsilon
+        self.pi.detach()
 
         self.negative_rate = negative_rate
 
@@ -170,9 +183,9 @@ class RotAtt(nn.Module):
             pos_score = self.margin - self.rotate(pos_triplets, ent_embed, rel_embed, mode)
             neg_score = self.margin - self.rotate(neg_triplets, ent_embed, rel_embed, mode)
 
-            y = torch.ones(len(pos_triplets))
+            y = torch.ones(len(pos_triplets)).to(self.device)
 
-            loss_fn = nn.MarginRankingLoss(margin=self.margin)
+            loss_fn = nn.MarginRankingLoss(margin=self.margin).to(self.device)
             loss = loss_fn(pos_score, neg_score, y)
 
             return loss 
@@ -180,6 +193,6 @@ class RotAtt(nn.Module):
         else:
             return self.margin - self.rotate(triplets, ent_embed, rel_embed, mode) 
 
-    def predict(self, data):
-        score = -self.forward(data, "tail_batch")
+    def predict(self, data, mode="tail_batch"):
+        score = -self.forward(data, mode, eval=True)
         return score.cpu().data.numpy()
