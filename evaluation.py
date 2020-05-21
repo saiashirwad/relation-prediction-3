@@ -40,7 +40,7 @@ def eval(kg_val, model, n_samples):
             triplets_h = generate_eval_triplets(data[i], "head", n_ent)
             triplets_h, _ = negative_sampling(triplets_h, n_ent, 0)
             triplets_h = triplets_h.to("cuda")
-            ee, re = model(triplets_h)
+            ee, re = model(triplets_h, eval_=True)
 
             dst = ee[data[i][1]].squeeze()
             rel = re[data[i][2]].squeeze()

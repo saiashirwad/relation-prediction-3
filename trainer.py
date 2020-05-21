@@ -56,11 +56,11 @@ class Trainer:
                 res += loss 
             training_range.set_description("Epoch %d | loss: %f" % (epoch, res))
 
-            if epoch % 10 == 0:
-                if "checkpoints" not in os.listdir("."):
-                    os.mkdir("checkpoint")
-                torch.save(self.model.state_dict(), os.path.join(f"./checkpoints/{self.name}"))
+            # if epoch % 10 == 0:
+            #     if "checkpoints" not in os.listdir("."):
+            #         os.mkdir("checkpoint")
+            #     torch.save(self.model.state_dict(), os.path.join(f"checkpoints/{self.name}"))
     
     def evaluate(self, n_samples=100):
         self.model.eval()
-        evaluation.eval(self.kg_val, n_samples)
+        evaluation.eval(self.kg_val, self.model, n_samples)

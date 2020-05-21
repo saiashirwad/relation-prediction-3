@@ -56,7 +56,7 @@ def train_rotatt():
     n_ent, n_rel = kg_train.n_ent, kg_train.n_rel 
     model = RotAtt(n_ent, n_rel, in_dim, out_dim, n_heads, dropout, negative_rate, 6.0, 2.0, device)
 
-    trainer = Trainer("first", model, 10, 2000, "cuda", "sgd", 0.001)
+    trainer = Trainer("first", model, 1, 2000, "cuda", "sgd", 0.001)
     trainer.run() 
     trainer.evaluate()
 
