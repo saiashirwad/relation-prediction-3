@@ -29,9 +29,6 @@ class RotAttLayer(nn.Module):
 
         self.sparse_neighborhood_aggregation = SparseNeighborhoodAggregation()
         
-        
-        
-        
         self.ent_embed_range = nn.Parameter(
             torch.Tensor([(self.margin + self.epsilon) / self.out_dim]), 
             requires_grad = False
@@ -48,61 +45,11 @@ class RotAttLayer(nn.Module):
         nn.init.uniform_(self.ent_embed.weight.data, -self.ent_embed_range.item(), self.ent_embed_range.item())
         nn.init.uniform_(self.rel_embed.weight.data, -self.rel_embed_range.item(), self.rel_embed_range.item())
 
-        
-        
-        
         self.input_drop = nn.Dropout(input_drop)
 
         self.bn0 = nn.BatchNorm1d(3 * in_dim).to(device)
         self.bn1 = nn.BatchNorm1d(out_dim).to(device)
         
-        self.pi = nn.Parameter(torch.Tensor([3.14159265358979323846])).to(device)
-        self.pi.requires_grad = False 
-        
-        self.margin = margin
-        self.epsilon = epsilon
-
-        self.negative_rate = 10
-    
-    def rotate(self, triplets, mode="head_batch"):
-
-        h = self.ent_embed[triplets[:, 0]]
-        t = self.ent_embed[triplets[:, 1]]
-        r  = self.rel_embed[triplets[:, 2]]
-
-        pi = self.pi
-
-        re_head, im_head = torch.chunk(h, 2, dim=-1)
-        re_tail, im_tail = torch.chunk(t, 2, dim=-1)
-
-        phase_relation = r / (self.rel_embed_range.item() / pi)
-
-        re_relation = torch.cos(phase_relation)
-        im_relation = torch.sin(phase_relation)
-
-        re_head = re_head.view(-1, re_relation.shape[0], re_head.shape[-1]).permute(1, 0, 2)
-        re_tail = re_tail.view(-1, re_relation.shape[0], re_tail.shape[-1]).permute(1, 0, 2)
-        im_head = im_head.view(-1, re_relation.shape[0], im_head.shape[-1]).permute(1, 0, 2)
-        im_tail = im_tail.view(-1, re_relation.shape[0], im_tail.shape[-1]).permute(1, 0, 2)
-        im_relation = im_relation.view(-1, re_relation.shape[0], im_relation.shape[-1]).permute(1, 0, 2)
-        re_relation = re_relation.view(-1, re_relation.shape[0], re_relation.shape[-1]).permute(1, 0, 2)
-
-        if mode == "head_batch":
-            re_score = re_relation * re_tail + im_relation * im_tail
-            im_score = re_relation * im_tail - im_relation * re_tail
-            re_score = re_score - re_head
-            im_score = im_score - im_head
-        else:
-            re_score = re_head * re_relation - im_head * im_relation
-            im_score = re_head * im_relation + im_head * re_relation
-            re_score = re_score - re_tail
-            im_score = im_score - im_tail
-
-        score = torch.stack([re_score, im_score], dim = 0)
-        score = score.norm(dim = 0).sum(dim = -1)
-        return score.permute(1, 0).flatten()
-
-
     def forward(self, triplets, eval=False, mode="head"):
 
         N = self.n_entities
@@ -141,40 +88,94 @@ class RotAttLayer(nn.Module):
         h_ent = hs / ebs
 
         index = triplets[:, 2]
-        h_rel  = scatter(temp1[ : temp1.shape[0]//2, :], index=index, dim=0, reduce="mean")
-        h_rel_ = scatter(temp1[temp1.shape[0]//2 : , :], index=index, dim=0, reduce="mean")
+        h_rel  = scatter(temp1[ : temp1.shape[0]//2, :], index=index, dim=0, reduce="mean") 
+        # h_rel_ =  scatter(temp1[temp1.shape[0]//2 : , :], index=index, dim=0, reduce="mean")
 
-        h_rel = h_rel - h_rel_  # add or subtract?
+        return h_ent, h_rel
+class RotAtt(nn.Module):
+    def __init__(self, n_ent, n_rel, in_dim, out_dim, n_heads=1, input_drop=0.5, negative_rate = 10, margin=6.0, epsilon=2.0, device="cuda"):
+        super().__init__() 
+
+        self.n_heads = n_heads 
+        self.device = device
+
+        self.a = nn.ModuleList([
+            RotAttLayer(
+                n_ent, n_rel, in_dim, out_dim, input_drop, margin=margin, epsilon=epsilon
+            )
+        ] for _ in range(self.n_heads))
+
+        self.ent_transform = nn.Linear(n_heads * out_dim, out_dim)
+        self.rel_transform = nn.Linear(n_heads * out_dim, out_dim)
+
+        self.pi = nn.Parameter(torch.Tensor([3.14159265358979323846])).to(device)
+        self.pi.requires_grad = False 
         
-        if not eval:
-            self.score = self.margin - self.rotate(triplets, mode)
+        self.margin = margin
+        self.epsilon = epsilon
 
+        self.negative_rate = negative_rate
+
+    def rotate(self, triplets, ent_embed, rel_embed, mode="head_batch"):
+        
+        h = ent_embed[triplets[:, 0]]
+        t = ent_embed[triplets[:, 1]]
+        r  = rel_embed[triplets[:, 2]]
+
+        pi = self.pi
+
+        re_head, im_head = torch.chunk(h, 2, dim=-1)
+        re_tail, im_tail = torch.chunk(t, 2, dim=-1)
+
+        phase_relation = r / (self.rel_embed_range.item() / pi)
+
+        re_relation = torch.cos(phase_relation)
+        im_relation = torch.sin(phase_relation)
+
+        re_head = re_head.view(-1, re_relation.shape[0], re_head.shape[-1]).permute(1, 0, 2)
+        re_tail = re_tail.view(-1, re_relation.shape[0], re_tail.shape[-1]).permute(1, 0, 2)
+        im_head = im_head.view(-1, re_relation.shape[0], im_head.shape[-1]).permute(1, 0, 2)
+        im_tail = im_tail.view(-1, re_relation.shape[0], im_tail.shape[-1]).permute(1, 0, 2)
+        im_relation = im_relation.view(-1, re_relation.shape[0], im_relation.shape[-1]).permute(1, 0, 2)
+        re_relation = re_relation.view(-1, re_relation.shape[0], re_relation.shape[-1]).permute(1, 0, 2)
+
+        if mode == "head_batch":
+            re_score = re_relation * re_tail + im_relation * im_tail
+            im_score = re_relation * im_tail - im_relation * re_tail
+            re_score = re_score - re_head
+            im_score = im_score - im_head
+        else:
+            re_score = re_head * re_relation - im_head * im_relation
+            im_score = re_head * im_relation + im_head * re_relation
+            re_score = re_score - re_tail
+            im_score = im_score - im_tail
+
+        score = torch.stack([re_score, im_score], dim = 0)
+        score = score.norm(dim = 0).sum(dim = -1)
+        return score.permute(1, 0).flatten()
+
+    def forward(self, triplets, mode="head", eval=False):
+        n = len(triplets)
+
+        out = [a(triplets) for a in self.a]
+
+        ent_embed = self.ent_transform(torch.cat([o[0] for o in out], dim=1))
+        rel_embed = self.rel_transform(torch.cat([o[1] for o in out], dim=1))
+
+        if not eval:
             pos_triplets = triplets[:n // (self.negative_rate + 1)]
             pos_triplets = torch.cat([pos_triplets for _ in range(self.negative_rate)])
             neg_triplets = triplets[n // (self.negative_rate + 1) :]
 
-            pos_score = self.margin - self.rotate(pos_triplets, mode)
-            neg_score = self.margin - self.rotate(neg_triplets, mode)
+            pos_score = self.margin - self.rotate(pos_triplets, ent_embed, rel_embed, mode)
+            neg_score = self.margin - self.rotate(neg_triplets, ent_embed, rel_embed, mode)
 
             y = torch.ones(len(pos_triplets))
 
             loss_fn = nn.MarginRankingLoss(margin=self.margin)
-            score = loss_fn(pos_score, neg_score, y)
+            loss = loss_fn(pos_score, neg_score, y)
 
-            return score
+            return loss 
         
-        return self.margin - self.rotate(triplets, mode)
-
-class RotAtt(nn.Module):
-    def __init__(self, n_ent, n_rel, in_dim, out_dim, n_heads, input_drop):
-        super().__init__() 
-
-        self.n_heads = n_heads 
-
-        self.a = nn.ModuleList([
-            RotAttLayer(
-                n_ent, n_rel, in_dim, out_dim, input_drop 
-            )
-        ] for _ in range(self.n_heads))
-
-        
+        else:
+            pass 

@@ -32,13 +32,17 @@ class Trainer:
     def run(self):
         if self.optim == "sgd":
             self.optimizer = optim.SGD(self.model.parameters, lr=self.lr)
-        
 
         training_range = tqdm(range(self.n_epochs))
         for epoch in training_range:
             for batch in self.dataloader:
                 triplets = torch.stack(batch)
-                triplets, labels = negative_sampling(triplets, self.n_ent, self.negative_rate)
-                triplets, labels = triplets.to(self.device), labels.to(self.device)
+                triplets, _ = negative_sampling(triplets, self.n_ent, self.negative_rate)
+                triplets = triplets.to(self.device)
 
-                
+                model.zero_grad()
+                model.train() 
+
+                loss = model(triplets, "tail")
+                loss.backward()
+
